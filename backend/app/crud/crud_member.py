@@ -34,34 +34,7 @@ async def create_member(db: AsyncSession, obj_in: MemberCreate):
     return new_member
 
 async def get_family_tree(db: AsyncSession):
-    # 1. Lấy tất cả thành viên
+    # Lấy danh sách phẳng, đơn giản và hiệu quả nhất cho thư viện này
     result = await db.execute(select(Member))
     members = result.scalars().all()
-    
-    # 2. Tạo một dictionary để tra cứu nhanh theo ID
-    member_dict = {
-        m.id: {
-            "id": m.id,
-            "full_name": m.full_name,
-            "gender": m.gender,
-            "is_heir": m.is_heir,
-            "is_alive": m.is_alive,
-            "children": []
-        } for m in members
-    }
-    
-    roots = []
-    for m in members:
-        member_node = member_dict[m.id]
-        # Nếu có cha, thì thêm mình vào danh sách con của cha
-        if m.father_id and m.father_id in member_dict:
-            member_dict[m.father_id]["children"].append(member_node)
-        # Nếu có mẹ và chưa được thêm vào cha (để tránh lặp), hoặc không rõ cha
-        elif m.mother_id and m.mother_id in member_dict:
-            member_dict[m.mother_id]["children"].append(member_node)
-        # Nếu không có cha lẫn mẹ trong hệ thống -> Đây là gốc (Cụ tổ)
-        else:
-            if not m.father_id and not m.mother_id:
-                roots.append(member_node)
-                
-    return roots
+    return members # FastAPI sẽ tự convert sang JSON
