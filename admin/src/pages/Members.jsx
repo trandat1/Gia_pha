@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import api from '../api/axios';
+// import { useAuth } from '../context/AuthContext';
 import {
     UserPlus, Users, Share2, ZoomIn, ZoomOut, RefreshCw,
     Search, ChevronDown, ChevronRight
 } from 'lucide-react';
-
 // ─── CONSTANTS ────────────────────────────────────────────
 const NODE_W = 175;
 const NODE_H = 88;
@@ -409,17 +409,46 @@ function FamilyTreeCanvas({ members, highlightId, focusId }) {
 
     // Auto-center on highlight (FIX: use SVG coords directly)
     useEffect(() => {
-        if (!highlightId || !containerRef.current) return;
+        if (!containerRef.current) return;
+
+        // KHI KHÔNG CHỌN AI: Đưa offset về 0, để CSS margin: '0 auto' tự động căn giữa cây gia phả
+        if (!highlightId) {
+            setOffset({ x: 0, y: 0 });
+            return;
+        }
+
         const pos = positions[highlightId];
         if (!pos) return;
+
+        // Lấy thông số để tính toán
+        const xs = Object.values(positions).map(p => p.x);
+        const ys = Object.values(positions).map(p => p.y);
+        if (!xs.length) return;
+        
+        const minX = Math.min(...xs) - 120;
+        const minY = Math.min(...ys) - 80;
+        const maxX = Math.max(...xs) + NODE_W + 120;
+        const svgW = maxX - minX;
+
         const container = containerRef.current;
         const cw = container.clientWidth;
         const ch = container.clientHeight;
-        const nodeCX = pos.x + NODE_W / 2;
-        const nodeCY = pos.y + NODE_H / 2;
-        // translate so that node center maps to container center
-        setOffset({ x: cw / 2 - nodeCX * scale, y: ch / 2 - nodeCY * scale });
-    }, [highlightId, scale]);
+
+        // TÍNH TOÁN BÙ TRỪ: Do '0 auto', trình duyệt tự đẩy SVG ra giữa một khoảng. Ta phải tính được khoảng đẩy đó.
+        const marginX = cw > (svgW * scale) ? (cw - (svgW * scale)) / 2 : 0;
+
+        // Tọa độ thực tế của Node BÊN TRONG thẻ SVG
+        const svgNodeX = pos.x - minX + NODE_W / 2;
+        const svgNodeY = pos.y - minY + NODE_H / 2;
+
+        // DỊCH CHUYỂN CAMERA
+        // x: Bù trừ marginX để căn ngang cho chuẩn
+        // y: Đặt ở ch / 3 (1/3 màn hình phía trên) thay vì ch / 2 để dễ nhìn như Đạt muốn
+        setOffset({ 
+            x: (cw / 2) - marginX - (svgNodeX * scale), 
+            y: (ch / 3) - (svgNodeY * scale) 
+        });
+    }, [highlightId, positions, scale]);
 
     const hasChildren = useCallback((id) =>
         members.some(x => x.father_id === id || x.mother_id === id), [members]);
@@ -827,7 +856,7 @@ const Members = () => {
     const spouseGenderFilter = formData.gender === 'Nam' ? 'Nữ' : 'Nam';
 
     return (
-        <div className="min-h-screen bg-slate-100 p-4">
+        <div className="h-full p-4">
             <div className="grid grid-cols-12 gap-4 h-[calc(100vh-2rem)]">
 
                 {/* FORM */}
