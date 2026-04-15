@@ -8,8 +8,29 @@ from app.core.config import settings
 from app.core.security import verify_password, create_access_token
 from app.crud.crud_user import get_user_by_phone_number, create_user
 from app.schemas.user import UserCreate, Token
+from app.api.dependencies import  get_current_user
+from app.models.user import User
+from app.schemas.user import UserCreate, Token, UserResponse
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+from app.models.role import Role
+
 
 router = APIRouter()
+
+
+async def init_roles(db: AsyncSession):
+    default_roles = ["admin", "member", "ke_toan"]
+    
+    for role_name in default_roles:
+        result = await db.execute(select(Role).where(Role.name == role_name))
+        existing_role = result.scalar_one_or_none()
+        
+        if not existing_role:
+            new_role = Role(name=role_name)
+            db.add(new_role)
+            
+    await db.commit()
 
 @router.post("/setup-admin")
 async def setup_admin(db: AsyncSession = Depends(get_db)):
@@ -28,7 +49,9 @@ async def setup_admin(db: AsyncSession = Depends(get_db)):
         is_superuser=True
     )
     await create_user(db, obj_in=admin_in)
+    await init_roles(db)
     return {"message": "Tạo tài khoản Admin thành công!", "phone_number": admin_phone}
+
 
 @router.post("/login/access-token")
 async def login_access_token(
@@ -55,3 +78,11 @@ async def login_access_token(
     )
     
     return {"message": "Đăng nhập thành công"}
+
+
+
+@router.get("/login/me", response_model=UserResponse) # UserResponse là schema trả về thông tin user
+async def get_my_profile(
+    current_user: User = Depends(get_current_user)
+):
+    return current_user

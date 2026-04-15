@@ -1,5 +1,6 @@
 from typing import Optional
 from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, ConfigDict
 
 class UserBase(BaseModel):
     phone_number: str # Bắt buộc phải có
@@ -16,6 +17,7 @@ class UserCreate(UserBase):
 
 class UserResponse(UserBase):
     id: int
+    model_config = ConfigDict(from_attributes=True)
 
 class Token(BaseModel):
     access_token: str
