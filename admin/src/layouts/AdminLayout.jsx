@@ -2,9 +2,9 @@ import React, { useState } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { 
-    Network, // Icon cho Gia phả
-    BookOpen, // Icon cho Nội quy
-    ShieldCheck, // Icon cho Phân quyền
+    Network, 
+    BookOpen, 
+    ShieldCheck, 
     Settings,
     LogOut,
     UserCircle
@@ -15,13 +15,15 @@ const AdminLayout = () => {
     const navigate = useNavigate();
     const [showDropdown, setShowDropdown] = useState(false);
 
-    // Menu Sidebar (Bạn có thể thêm bớt ở đây)
+    // 1. Kiểm tra xem user hiện tại có phải là Admin không
+    const isAdmin = user?.is_superuser;
+
+    // 2. Cấu hình Menu linh hoạt
     const menuItems = [
         { path: '/admin/members', name: 'Sơ đồ Gia phả', icon: <Network size={20} /> },
         { path: '/admin/rules', name: 'Nội quy', icon: <BookOpen size={20} /> },
-        { path: '/admin/roles', name: 'Phân quyền', icon: <ShieldCheck size={20} /> },
-    ];
-
+        isAdmin ? { path: '/admin/users', name:'Thành viên', icon:<UserCircle size={20} /> } : null
+    ].filter(Boolean); 
     return (
         <div className="flex h-screen bg-slate-100 overflow-hidden font-sans">
             
@@ -62,8 +64,11 @@ const AdminLayout = () => {
                             className="flex items-center gap-2 hover:bg-slate-50 p-2 rounded-lg transition"
                         >
                             <div className="text-right hidden md:block">
-                                <p className="text-sm font-bold text-slate-700">{user?.full_name || 'Admin'}</p>
-                                <p className="text-[10px] text-slate-400">Quản trị viên</p>
+                                <p className="text-sm font-bold text-slate-700">{user?.full_name || 'Người dùng'}</p>
+                                {/* Đổi text hiển thị dựa theo quyền */}
+                                <p className="text-[10px] text-slate-400">
+                                    {isAdmin ? 'Quản trị viên' : 'Thành viên'}
+                                </p>
                             </div>
                             {/* Avatar Tạm thời */}
                             <div className="w-9 h-9 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center">

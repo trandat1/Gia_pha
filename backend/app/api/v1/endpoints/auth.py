@@ -61,7 +61,14 @@ async def login_access_token(
 ):
     user = await get_user_by_phone_number(db, phone_number=form_data.username)
     if not user or not verify_password(form_data.password, user.hashed_password):
-        raise HTTPException(status_code=400, detail="Sai số điện thoại hoặc mật khẩu")
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Sai số điện thoại hoặc mật khẩu")
+
+    # Sau khi verify_password thành công
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, 
+            detail="Tài khoản của bạn đã bị khóa. Vui lòng liên hệ Admin!"
+        )
 
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(subject=user.id, expires_delta=access_token_expires)
@@ -85,4 +92,19 @@ async def login_access_token(
 async def get_my_profile(
     current_user: User = Depends(get_current_user)
 ):
+
     return current_user
+
+
+@router.post("/logout")
+async def logout(response: Response):
+    """
+    API Đăng xuất: Yêu cầu trình duyệt xóa HttpOnly Cookie
+    """
+    response.delete_cookie(
+        key="access_token",
+        httponly=True,
+        samesite="lax",
+        secure=False,  # Nếu web thực tế chạy HTTPS (có SSL) thì đổi thành True nhé
+    )
+    return {"message": "Đăng xuất thành công"}

@@ -11,6 +11,13 @@ from app.db.session import get_db
 from app.models.user import User
 from app.schemas.user import TokenPayload
 from fastapi import Request
+from fastapi import Request, Depends, HTTPException
+from sqlalchemy.ext.asyncio import AsyncSession
+# 1. Nhớ import 2 hàm này vào đầu file
+from sqlalchemy import select
+from sqlalchemy.orm import selectinload
+import jwt
+from pydantic import ValidationError
 
 # Báo cho Swagger biết API nào dùng JWT Token
 reusable_oauth2 = OAuth2PasswordBearer(
@@ -18,11 +25,9 @@ reusable_oauth2 = OAuth2PasswordBearer(
 )
 
 async def get_current_user(
-    request: Request, # Chuyển sang dùng Request
+    request: Request,
     db: AsyncSession = Depends(get_db)
 ) -> User:
-    # Đọc token từ cookie
-    print(request.cookies)
     token = request.cookies.get("access_token")
     
     if not token:
@@ -34,9 +39,19 @@ async def get_current_user(
     except (InvalidTokenError, ValidationError):
         raise HTTPException(status_code=403, detail="Token không hợp lệ")
 
-    user = await db.get(User, int(token_data.sub))
+    # 2. SỬA ĐOẠN NÀY: Dùng select và selectinload thay vì db.get()
+    stmt = (
+        select(User)
+        .where(User.id == int(token_data.sub))
+        .options(selectinload(User.member)) # Bắt buộc lấy theo thông tin gia phả
+        .options(selectinload(User.role))   # (Tùy chọn) Lấy luôn role nếu cần
+    )
+    result = await db.execute(stmt)
+    user = result.scalar_one_or_none()
+    
     if not user:
         raise HTTPException(status_code=404, detail="Không thấy người dùng")
+        
     return user
 
 async def get_current_active_user(

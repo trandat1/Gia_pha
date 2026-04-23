@@ -1,9 +1,13 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import api from '../api/axios';
+import MemberDetailModal from '../components/MemberDetailModal'; 
+import EditMemberModal from '../components/EditMemberModal'; 
+import { useAuth } from '../context/AuthContext';
 // import { useAuth } from '../context/AuthContext';
 import {
     UserPlus, Users, Share2, ZoomIn, ZoomOut, RefreshCw,
-    Search, ChevronDown, ChevronRight
+    Search, ChevronDown, ChevronRight,Info,
+    User
 } from 'lucide-react';
 // ─── CONSTANTS ────────────────────────────────────────────
 const NODE_W = 175;
@@ -696,15 +700,15 @@ function FamilyTreeCanvas({ members, highlightId, focusId }) {
 }
 
 // ─── MEMBER LIST ──────────────────────────────────────────
-function MemberList({ members, onHighlight, highlightId, onFocus, focusId }) {
+function MemberList({ members, onHighlight, highlightId, onFocus, focusId, onOpenDetail }) {
     const [search, setSearch] = useState('');
     const [expandedFamilies, setExpandedFamilies] = useState(new Set(['root']));
     const { heirChain, dichTonSet, noiDoiSet } = useMemo(() => computeHeirInfo(members), [members]);
-
     const filtered = useMemo(() => {
         if (!search) return members;
         return members.filter(m => m.full_name.toLowerCase().includes(search.toLowerCase()));
     }, [members, search]);
+    // Thêm vào trong component Members
 
     const groups = useMemo(() => {
         const byFather = {};
@@ -730,7 +734,7 @@ function MemberList({ members, onHighlight, highlightId, onFocus, focusId }) {
         const isHL = highlightId === m.id;
         const isFocus = focusId === m.id;
         const hasFamily = groups.byFather[m.id]?.length > 0;
-
+        
         return (
             <div className={`flex items-center gap-1 rounded-lg transition-colors mb-0.5
                 ${isHL ? 'bg-orange-50 ring-1 ring-orange-300' : isFocus ? 'bg-indigo-50 ring-1 ring-indigo-300' : 'hover:bg-slate-50'}`}
@@ -759,6 +763,13 @@ function MemberList({ members, onHighlight, highlightId, onFocus, focusId }) {
                         {isTT && <span className="text-xs">👑</span>}
                         {isDT && <span className="text-xs">🌿</span>}
                         {isND && <span className="text-xs text-blue-400 text-[10px]">🔵</span>}
+                        <button 
+                            onClick={(e) => { e.stopPropagation(); onOpenDetail(m.id); }}
+                            className="p-1.5 hover:bg-slate-200 text-slate-500 rounded-lg transition"
+                            title="Xem chi tiết"
+                        >
+                            <Info size={15} />
+                        </button>                        
                     </div>
                 </div>
 
@@ -815,6 +826,8 @@ const Members = () => {
     const [loading, setLoading]         = useState(false);
     const [highlightId, setHighlightId] = useState(null);
     const [focusId, setFocusId]         = useState(null);
+    const [detailMember, setDetailMember] = useState(null);
+    const { user, logout } = useAuth();
     const [formData, setFormData]       = useState({
         full_name:'', gender:'Nam', is_heir:false, is_alive:true,
         birth_date:'', death_date:'', address:'', bio:'',
@@ -854,7 +867,19 @@ const Members = () => {
 
     // Spouse filter: con gái chỉ thấy con trai và ngược lại
     const spouseGenderFilter = formData.gender === 'Nam' ? 'Nữ' : 'Nam';
+    const handleOpenDetail = (memberId) => {
+        const member = members.find(m => m.id === memberId);
+        if (member) {
+            setDetailMember(member);
+        }
+    };
+    const [editMember, setEditMember] = useState(null);
 
+    // Hàm xử lý sau khi cập nhật thành công
+    const handleMemberUpdated = (updatedMember) => {
+        setMembers(prev => prev.map(m => m.id === updatedMember.id ? updatedMember : m));
+        setDetailMember(updatedMember); // Cập nhật lại popup chi tiết nếu đang mở
+    };    
     return (
         <div className="h-full p-4">
             <div className="grid grid-cols-12 gap-4 h-[calc(100vh-2rem)]">
@@ -950,7 +975,11 @@ const Members = () => {
                     </h2>
                     <MemberList members={members}
                         highlightId={highlightId} onHighlight={setHighlightId}
-                        focusId={focusId}         onFocus={setFocusId}/>
+                        focusId={focusId}         onFocus={setFocusId}
+                        onOpenDetail={(memberId) => {
+                            const member = members.find(m => m.id === memberId);
+                            if (member) setDetailMember(member);
+                        }}/>
                 </div>
 
                 {/* TREE */}
@@ -976,7 +1005,28 @@ const Members = () => {
                     </div>
                 </div>
             </div>
-        </div>
+            {/* POPUP CHI TIẾT */}
+            <MemberDetailModal 
+                member={detailMember} 
+                allMembers={members} 
+                onClose={() => setDetailMember(null)} 
+                /* Sửa dòng này: Khi nhấn Edit, đóng popup Chi tiết và truyền member vào Edit */
+                onEdit={(m) => {
+                    setDetailMember(null); 
+                    setEditMember(m); 
+                }}
+            />    
+            {/* POPUP CHỈNH SỬA (Thêm thẻ này ở ngay dưới) */}
+            {editMember && (
+                <EditMemberModal 
+                    member={editMember} 
+                    allMembers={members}
+                    currentUser={user} // Nếu dùng phân quyền
+                    onClose={() => setEditMember(null)}
+                    onUpdate={handleMemberUpdated}
+                />
+        )}            
+        </div> 
     );
 };
 

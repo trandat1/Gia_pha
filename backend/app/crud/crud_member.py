@@ -1,7 +1,7 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from app.models.member import Member
-from app.schemas.member import MemberCreate
+from app.schemas.member import MemberCreate,MemberUpdate
 from sqlalchemy import update
 
 async def get_members(db: AsyncSession, skip: int = 0, limit: int = 100):
@@ -32,6 +32,24 @@ async def create_member(db: AsyncSession, obj_in: MemberCreate):
     await db.commit()
     await db.refresh(new_member)
     return new_member
+
+
+async def get_member(db: AsyncSession, member_id: int):
+    result = await db.execute(select(Member).where(Member.id == member_id))
+    return result.scalar_one_or_none()
+
+# 2. Cập nhật thông tin thành viên
+async def update_member(db: AsyncSession, db_obj: Member, obj_in: MemberUpdate):
+    # Chuyển Schema thành dict, loại bỏ các trường không truyền (None)
+    update_data = obj_in.model_dump(exclude_unset=True)
+    
+    for field in update_data:
+        setattr(db_obj, field, update_data[field])
+    
+    db.add(db_obj)
+    await db.commit()
+    await db.refresh(db_obj)
+    return db_obj
 
 async def get_family_tree(db: AsyncSession):
     # Lấy danh sách phẳng, đơn giản và hiệu quả nhất cho thư viện này

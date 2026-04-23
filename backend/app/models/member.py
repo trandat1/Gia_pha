@@ -6,6 +6,7 @@ from sqlalchemy.orm import relationship
 
 if TYPE_CHECKING:
     from app.models.role import Role
+    from app.models.user import User
 class Member(Base):
     __tablename__ = "members"
 
@@ -21,13 +22,10 @@ class Member(Base):
     is_alive: Mapped[bool] = mapped_column(Boolean, default=True)
     address: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     bio: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-
-    role: Mapped[Optional["Role"]] = relationship("Role", back_populates="members")
-
     # Các khóa ngoại để tạo cấu trúc cây
     father_id: Mapped[Optional[int]] = mapped_column(ForeignKey("members.id"), nullable=True)
     mother_id: Mapped[Optional[int]] = mapped_column(ForeignKey("members.id"), nullable=True)
     spouse_id: Mapped[Optional[int]] = mapped_column(ForeignKey("members.id"), nullable=True)
-    role_id: Mapped[Optional[int]] = mapped_column(ForeignKey("roles.id"), nullable=True)
     user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"), nullable=True)
+    user: Mapped[Optional["User"]] = relationship("User", back_populates="member")
 

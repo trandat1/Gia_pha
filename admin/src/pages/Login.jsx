@@ -2,13 +2,13 @@ import React, { useState } from 'react';
 import api from '../api/axios';
 import { useNavigate } from 'react-router-dom';
 import { Lock, Phone } from 'lucide-react';
-
+import { useAuth } from '../context/AuthContext';
 const Login = () => {
     const [phone, setPhone] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const navigate = useNavigate();
-
+    const { checkAuth } = useAuth();
     const handleLogin = async (e) => {
         e.preventDefault();
         setError('');
@@ -19,17 +19,14 @@ const Login = () => {
         params.append('password', password);
 
         try {
-            // Gọi API với header content-type chuẩn của Form
             await api.post('/auth/login/access-token', params, {
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded'
                 }
             });
-            
-            // Nếu thành công, chuyển hướng sang Dashboard
-            navigate('/dashboard');
+            await checkAuth();
+            navigate('/admin/members');
         } catch (err) {
-            // Kiểm tra xem lỗi trả về từ Backend là gì để hiển thị cho đúng
             const message = err.response?.data?.detail || 'Số điện thoại hoặc mật khẩu không đúng!';
             setError(message);
         }
